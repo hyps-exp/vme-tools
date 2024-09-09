@@ -106,7 +106,7 @@ int rbcp_rd(unsigned int address, unsigned char* data, unsigned char length){
   char sndBuf[1024],rcvBuf[1024];
   struct timeval timeout;
   fd_set setSelect;
-  int retsiz;
+  int retsiz = 0;
   int retry_count;
 
   /* fill header data */

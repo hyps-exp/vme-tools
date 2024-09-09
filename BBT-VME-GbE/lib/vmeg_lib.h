@@ -1,8 +1,9 @@
-#define MAXBUFSIZ 256
+#ifndef VMEG_LIB_H
+#define VMEG_LIB_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <string>
+
+#define MAXBUFSIZ 256
 
 #define A16 0x0000
 #define A24 0x0100
@@ -76,7 +77,7 @@ extern "C" {
 #define VMEGwrite_a32d32_blt(AA,BB,CC,DD) VMEGwrite(AA,A32|D32|BLT,BB,CC,DD)
 
 
-int VMEGopen(char *, int);
+int VMEGopen(const std::string&, int);
 void VMEGclose(int);
 
 int VMEGread(int, unsigned short, unsigned int, void *, int);
@@ -85,6 +86,4 @@ int VMEGwrite(int, unsigned short, unsigned int, void *, int);
 int VMEGread_req(int, unsigned short, unsigned int, void *, int, int);
 int VMEGread_rcv(int, unsigned short, unsigned int, void *, int, int);
 
-#ifdef __cplusplus
-};
 #endif
