@@ -1,19 +1,24 @@
 CXXFLAGS	+= -Wall -O2 -MMD -I../lib/
 LIBS		+= -L../lib -lBBT-VME-GbE -Wl,-rpath,../lib
 
-target		= v895
-object		= v895.o
+src_dir         = src
+bin_dir         = bin
+target          = $(bin_dir)/v895
+object          = $(src_dir)/v895.o
 deps		= $(object:.o=.d)
 
 all: $(target)
 
-$(target): $(object)
+$(bin_dir):
+	@mkdir -p $(bin_dir)
+
+$(target): $(object) | $(bin_dir)
 	@echo === Linking $@ ...
 	$(CXX) -o $@ $^ $(LIBS)
 
 -include $(deps)
 
-.cc.o:
+$(src_dir)/%.o: $(src_dir)/%.cc
 	@echo === Compiling $< ...
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
