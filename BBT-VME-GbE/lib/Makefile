@@ -1,7 +1,7 @@
 CXXFLAGS 	+= -Wall -O2 -MMD
 
 target		= libBBT-VME-GbE.a
-objects		= vmeg_lib.o rbcp_lib.o
+objects		= bbt-vme-gbe.o
 deps		= $(objects:.o=.d)
 
 all: $(target)

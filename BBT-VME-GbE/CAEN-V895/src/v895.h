@@ -1,7 +1,7 @@
 // -*- C++ -*-
 
-#ifndef BBT_VME_GbE__CAEN_V895_H
-#define BBT_VME_GbE__CAEN_V895_H
+#ifndef CAEN_V895_H
+#define CAEN_V895_H
 
 #include <string>
 

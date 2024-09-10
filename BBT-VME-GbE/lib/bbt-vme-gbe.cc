@@ -1,3 +1,7 @@
+// -*- C++ -*-
+
+#include "bbt-vme-gbe.h"
+
 #include <string>
 
 #include <stdio.h>
@@ -13,22 +17,11 @@
 
 #define DEBUG 0
 
-#define A16 0x0000
-#define A24 0x0100
-#define A32 0x0200
-
-#define D8  0x0000
-#define D16 0x0400
-#define D32 0x0800
-
-#define BLT 0x0020
-#define FIX 0x0080
-
-#define MAXBUFSIZ 256
-
-#define HEADER_SIZE 12
-
-#define calc_crc11(AA) calc_crc(AA,11)
+namespace bbt
+{
+namespace vmeg
+{
+int sock;
 
 struct packet_buf {
   unsigned int address;
@@ -38,7 +31,6 @@ struct packet_buf {
   unsigned char crc;
   unsigned char data[MAXBUFSIZ];
 };
-
 unsigned char ID=0;
 
 unsigned char CRCTbl [] = {
@@ -60,17 +52,20 @@ unsigned char CRCTbl [] = {
   0xde, 0xd9, 0xd0, 0xd7, 0xc2, 0xc5, 0xcc, 0xcb,   0xe6, 0xe1, 0xe8, 0xef, 0xfa, 0xfd, 0xf4, 0xf3
 };
 
-unsigned char calc_crc(void *buf,unsigned int len){
+unsigned char calc_crc(void *buf,unsigned int len) {
   unsigned int i;
   unsigned char crc;
   unsigned char *ptr = (unsigned char *)buf;
-  crc=0xff;
-  for(i=0;i<len;i++) crc=CRCTbl[crc^*ptr++];
+  crc = 0xff;
+  for (i = 0; i < len; i++) crc = CRCTbl[crc^*ptr++];
   return crc;
 }
 
-int VMEGopen(const std::string& host, int port) {
-  int sock;
+unsigned char calc_crc11(void* buf) {
+  return calc_crc(buf, 11);
+}
+
+int open(const std::string& host, int port) {
   struct sockaddr_in SockAddr;
   int one;
 
@@ -89,12 +84,12 @@ int VMEGopen(const std::string& host, int port) {
   return sock;
 }
 
-void VMEGclose(int sock) {
+void close() {
   ::close(sock);
 }
 
-int VMEGwrite(int sock, unsigned short mode, unsigned int address,
-              void *data, int bytes) {
+int write(unsigned short mode, unsigned int address,
+          void *data, int bytes) {
   struct packet_buf buf;
   unsigned char *buftop;
   unsigned char *buf8;
@@ -120,7 +115,7 @@ int VMEGwrite(int sock, unsigned short mode, unsigned int address,
 
   /* put data */
   if ((mode&0x0c00)==D8){
-    memcpy(buf8, data, bytes);
+    std::memcpy(buf8, data, bytes);
   }else if ((mode&0x0c00)==D16){
     for(i=0;i<bytes/2;i++) *(buf16+i)=htons(*((unsigned short *)data+i));
   }else{
@@ -130,14 +125,14 @@ int VMEGwrite(int sock, unsigned short mode, unsigned int address,
 #if DEBUG
   printf("send packet -- "); for(i=0;i<(HEADER_SIZE+bytes);i++) printf("%02x ",*(buftop+i)); printf("\n");
 #endif
- if (send(sock,buftop,HEADER_SIZE+bytes,0)<0){
+  if (::send(sock, buftop, HEADER_SIZE+bytes, 0) < 0) {
     printf("packet send failed\n");
     return -1;
   }
   /* receive header packet */
   recv_len=0;
   while(recv_len<HEADER_SIZE){
-    if ((ret=recv(sock,buftop+recv_len,HEADER_SIZE-recv_len,0))<=0){
+    if ((ret = ::recv(sock, buftop+recv_len, HEADER_SIZE-recv_len, 0)) <= 0) {
       printf("packet recv failed\n");
       return -1;
     }
@@ -155,7 +150,8 @@ int VMEGwrite(int sock, unsigned short mode, unsigned int address,
   return 0;
 }
 
-int VMEGread(int sock, unsigned short mode, unsigned int address, void *data, int bytes){
+int read(unsigned short mode, unsigned int address,
+         void *data, int bytes) {
   struct packet_buf buf;
   unsigned char *buftop;
   unsigned char *buf8;
@@ -186,7 +182,7 @@ int VMEGread(int sock, unsigned short mode, unsigned int address, void *data, in
   printf("send packet -- "); for(i=0;i<HEADER_SIZE;i++) printf("%02x ",*(buftop+i)); printf("\n");
   clock_gettime(CLOCK_MONOTONIC,&ts0);
 #endif
-  if (send(sock,buftop,HEADER_SIZE,0)<0){
+  if (::send(sock, buftop, HEADER_SIZE, 0) < 0) {
     printf("packet send failed\n");
     return -1;
   }
@@ -196,7 +192,7 @@ int VMEGread(int sock, unsigned short mode, unsigned int address, void *data, in
   clock_gettime(CLOCK_MONOTONIC,&ts1);
 #endif
   while(recv_len<HEADER_SIZE){
-    if ((ret=recv(sock,buftop+recv_len,HEADER_SIZE-recv_len,0))<=0){
+    if ((ret = ::recv(sock, buftop+recv_len, HEADER_SIZE-recv_len, 0)) <= 0) {
       printf("packet recv failed\n");
       return -1;
     }
@@ -218,7 +214,7 @@ int VMEGread(int sock, unsigned short mode, unsigned int address, void *data, in
 #endif
   recv_len=0;
   while(recv_len<bytes){
-    if ((ret=recv(sock,buf8+recv_len,bytes-recv_len,0))<=0){
+    if ((ret = ::recv(sock, buf8+recv_len, bytes-recv_len, 0)) <= 0) {
       printf("packet recv failed\n");
       return -1;
     }
@@ -228,7 +224,7 @@ int VMEGread(int sock, unsigned short mode, unsigned int address, void *data, in
   clock_gettime(CLOCK_MONOTONIC,&ts4);
 #endif
   if ((mode&0x0c00)==D8){
-    memcpy(data,buf8,bytes);
+    std::memcpy(data,buf8,bytes);
   }else if ((mode&0x0c00)==D16){
     for(i=0;i<bytes/2;i++)
       *((unsigned short *)data+i)=ntohs(*(buf16+i));
@@ -248,87 +244,5 @@ int VMEGread(int sock, unsigned short mode, unsigned int address, void *data, in
   ID++;
   return 0;
 }
-
-int VMEGread_req(int sock, unsigned short mode, unsigned int address, void *data, int bytes, int id){
-  struct packet_buf buf;
-  unsigned char *buftop;
-
-  /* set pointer for data */
-  buftop=(unsigned char *)&buf;
-
-  /* create packet header */
-  buf.address=htonl(address);
-  buf.length =htonl((unsigned int)(bytes));
-  buf.mode=htons(mode);
-  buf.id=id;
-  buf.crc=calc_crc11(&buf);
-
-  /* send packet */
-#if DEBUG
-  int i = 0;
-  printf("send packet -- "); for(i=0;i<HEADER_SIZE;i++) printf("%02x ",*(buftop+i)); printf("\n");
-#endif
-  if (::send(sock,buftop,HEADER_SIZE,0) < 0) {
-    printf("packet send failed\n");
-    return -1;
-  }
-  return 0;
-}
-
-int VMEGread_rcv(int sock, unsigned short mode, unsigned int address, void *data, int bytes, int id){
-  struct packet_buf buf;
-  unsigned char *buftop;
-  unsigned char *buf8;
-  unsigned short *buf16;
-  unsigned int *buf32;
-  unsigned int recv_len;
-  unsigned int ret;
-  int i;
-
-  /* set pointer for data */
-  buftop=(unsigned char *)&buf;
-  buf8=(unsigned char *)(buftop+HEADER_SIZE);
-  buf16=(unsigned short *)(buftop+HEADER_SIZE);
-  buf32=(unsigned int *)(buftop+HEADER_SIZE);
-
-  /* receive packet */
-  recv_len=0;
-  while(recv_len<HEADER_SIZE){
-    if ((ret=recv(sock,buftop+recv_len,HEADER_SIZE-recv_len,0))<=0){
-      printf("packet recv failed\n");
-      return -1;
-    }
-    recv_len+=ret;
-  }
-#if DEBUG
-  printf("recv header packet -- "); for(i=0;i<HEADER_SIZE;i++) printf("%02x ",*(buftop+i)); printf("\n");
-#endif
-
-  /* check error status */
-  if (buf.id!=id){                    printf("ID check NG\n");    return -1;  }
-  if (calc_crc11(&buf)!=buf.crc){     printf("CRC check NG\n");   return -1;  }
-  if (buf.mode&0x0100){               printf("corrupt packet\n"); return -1;  }
-  if (buf.mode&0x0400){               printf("VME timeout\n");    return -1;  }
-  if (ntohl(buf.length)!=bytes){      printf("size diff.\n");     return -1;  }
-
-  /* receive data packet */
-  recv_len=0;
-  while(recv_len<bytes){
-    if ((ret=recv(sock,buf8+recv_len,bytes-recv_len,0))<=0){
-      printf("packet recv failed\n");
-      return -1;
-    }
-    recv_len+=ret;
-  }
-  if ((mode&0x0c00)==D8){
-    memcpy(data,buf8,bytes);
-  }else if ((mode&0x0c00)==D16){
-    for(i=0;i<bytes/2;i++) *((unsigned short *)data+i)=ntohs(*(buf16+i));
-  }else{
-    for(i=0;i<bytes/4;i++) *((unsigned int *)data+i)=ntohl(*(buf32+i));
-  }
-#if DEBUG
-  printf("recv data packet -- "); for(i=0;i<bytes;i++) printf("%02x ",*(buf8+i)); printf("\n");
-#endif
-  return 0;
-}
+} // namespace vmeg
+} // namespace bbt

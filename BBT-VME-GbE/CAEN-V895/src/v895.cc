@@ -1,5 +1,8 @@
+// -*- C++ -*-
+
 #include "v895.h"
-#include "vmeg_lib.h"
+
+#include "bbt-vme-gbe.h"
 
 #include <fstream>
 #include <iostream>
@@ -16,29 +19,30 @@ namespace caen
 {
 namespace v895
 {
-void get_version_serial(int sock, unsigned int baseaddr) {
+const auto AM = bbt::vmeg::A24;
+const auto DM = bbt::vmeg::D16;
+
+// std::stringstream ss;
+// void log(const std::string& msg) {
+//   static std::ofstream ofs("last.log");
+//   std::cout << msg; ofs << msg;
+// }
+
+void get_version_serial(unsigned int baseaddr) {
   unsigned short ver;
   unsigned int address = baseaddr + kVersionSerial;
-  if (VMEGread(sock, A24 | D16, address, &ver, 2) < 0) {
+  if (bbt::vmeg::read(AM | DM, address, &ver, 2) < 0) {
     throw std::runtime_error("Error reading version!");
   }
-
-  // auto start = std::chrono::high_resolution_clock::now();
-
-  if (VMEGread(sock, A24 | D16, address, &ver, 2) < 0) {
+  if (bbt::vmeg::read(AM | DM, address, &ver, 2) < 0) {
     throw std::runtime_error("Error reading version (retry)!");
   }
-
-  // auto end = std::chrono::high_resolution_clock::now();
-  // std::chrono::duration<double> elapsed = end - start;
-
   std::cout << "Version: " << std::hex << ((ver >> 12) & 0xf) << "\n";
   std::cout << "Serial: " << std::hex << (ver & 0xfff) << "\n";
-  // std::cout << "Elapsed time: " << elapsed.count() << " seconds\n";
 }
 
 //_____________________________________________________________________________
-void set_thresholds(int sock, const std::string& file_path) {
+void set_thresholds(const std::string& file_path) {
   std::ifstream ifs(file_path);
   if (!ifs.is_open()) {
     throw std::runtime_error("Failed to open the file: " + file_path);
@@ -51,18 +55,17 @@ void set_thresholds(int sock, const std::string& file_path) {
 
   while (std::getline(ifs, line)) {
     std::istringstream iss(line);
-
     if (line.find("VME") == 0) {
       std::string token;
       iss >> token >> std::hex >> baseaddr;
       std::cout << "VME base address: "
                 << std::hex << baseaddr << std::endl;
-      // get_version_serial(sock, baseaddr);
+      // get_version_serial(baseaddr);
     } else if (line == "END") {
       for (int i = 0; i < n_ch; ++i) {
         unsigned int address = baseaddr + (i * 2);
         if (enables[i]) {
-          if (VMEGwrite(sock, A24 | D16, address, &thresholds[i],
+          if (bbt::vmeg::write(AM | DM, address, &thresholds[i],
                         sizeof(thresholds[i])) < 0) {
             throw std::runtime_error("Failed to set threshold for channel "
                                      + std::to_string(i));
@@ -77,7 +80,6 @@ void set_thresholds(int sock, const std::string& file_path) {
     } else if (std::isdigit(line[0])) {
       int channel, threshold, enable;
       iss >> channel >> threshold >> enable;
-
       if (channel >= 0 && channel < n_ch) {
         thresholds[channel] = threshold;
         enables[channel] = enable;
@@ -97,10 +99,14 @@ int main(int argc, char *argv[]) {
 
   const std::string file_path = argv[1];
 
+  auto now = std::chrono::system_clock::now();
+  auto now_time = std::chrono::system_clock::to_time_t(now);
+  std::cout << std::ctime(&now_time);
+
   try {
-    int sock = VMEGopen(host, port);
-    caen::v895::set_thresholds(sock, file_path);
-    VMEGclose(sock);
+    bbt::vmeg::open(host, port);
+    caen::v895::set_thresholds(file_path);
+    bbt::vmeg::close();
   } catch (const std::exception& e) {
     std::cerr << "Exception: " << e.what() << std::endl;
     return -1;
