@@ -3,10 +3,10 @@
 #include "bbt-vme-gbe.h"
 
 #include <string>
+#include <cstring>
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -207,13 +207,13 @@ int read(unsigned short mode, unsigned int address,
   if (calc_crc11(&buf)!=buf.crc){     printf("CRC check NG\n");   return -1;  }
   if (buf.mode&0x0100){               printf("corrupt packet\n"); return -1;  }
   if (buf.mode&0x0400){               printf("VME timeout\n");    return -1;  }
-  if (ntohl(buf.length)!=bytes){      printf("size diff.\n");     return -1;  }
+  if (ntohl(buf.length)!=(unsigned int)bytes){      printf("size diff.\n");     return -1;  }
   /* receive data packet */
 #if DEBUG
   clock_gettime(CLOCK_MONOTONIC,&ts3);
 #endif
   recv_len=0;
-  while(recv_len<bytes){
+  while(recv_len<(unsigned int)bytes){
     if ((ret = ::recv(sock, buf8+recv_len, bytes-recv_len, 0)) <= 0) {
       printf("packet recv failed\n");
       return -1;

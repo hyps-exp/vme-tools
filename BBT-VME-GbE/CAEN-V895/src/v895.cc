@@ -6,13 +6,14 @@
 
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <string>
 #include <vector>
 #include <chrono>
 #include <stdexcept>
 
-const std::string host = "172.25.27.163";
+const std::string host = "192.168.10.5";
 const int port = 24;
 
 namespace caen
