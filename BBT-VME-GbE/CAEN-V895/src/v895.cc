@@ -13,7 +13,8 @@
 #include <chrono>
 #include <stdexcept>
 
-const std::string host = "192.168.10.5";
+//const std::string host = "192.168.10.5";
+std::string host = "";
 const int port = 24;
 
 namespace caen
@@ -40,6 +41,32 @@ void get_version_serial(unsigned int baseaddr) {
   }
   std::cout << "Version: " << std::hex << ((ver >> 12) & 0xf) << "\n";
   std::cout << "Serial: " << std::hex << (ver & 0xfff) << "\n";
+}
+
+//_____________________________________________________________________________
+void get_ipaddress(const std::string& file_path) {
+  std::ifstream ifs(file_path);
+  if (!ifs.is_open()) {
+    throw std::runtime_error("Failed to open the file: " + file_path);
+  }
+  std::string line;
+  std::string ip;
+  while (std::getline(ifs, line)){
+    std::istringstream iss(line);
+    std::string key;
+    iss >> key;
+    if(key == "IP"){
+      iss >> ip;
+      break;
+    }
+  }
+  ifs.close();
+  if(!ip.empty()){
+    host = ip;
+    std::cout << " IP: " << host << std::endl;
+  } else {
+    throw std::runtime_error("Failed to read ip address in the file: " + file_path);
+  }
 }
 
 //_____________________________________________________________________________
@@ -105,6 +132,7 @@ int main(int argc, char *argv[]) {
   std::cout << std::ctime(&now_time);
 
   try {
+    caen::v895::get_ipaddress(file_path);
     bbt::vmeg::open(host, port);
     caen::v895::set_thresholds(file_path);
     bbt::vmeg::close();

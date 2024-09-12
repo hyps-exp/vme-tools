@@ -4,7 +4,7 @@
 #  note: output width is fixed to 40ns
 #
 #
-
+IP     192.168.10.5
 #
 # ch	Vth	Enable
 # 0-16	0-255	0-1
