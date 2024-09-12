@@ -13,9 +13,9 @@
 #include <chrono>
 #include <stdexcept>
 
-//const std::string host = "192.168.10.5";
 std::string host = "";
-const int port = 24;
+int port = -999;
+//const int port = 24;
 
 namespace caen
 {
@@ -50,14 +50,16 @@ void get_ipaddress(const std::string& file_path) {
     throw std::runtime_error("Failed to open the file: " + file_path);
   }
   std::string line;
-  std::string ip;
+  std::string ip = "";
+  int pt = -999;
   while (std::getline(ifs, line)){
     std::istringstream iss(line);
     std::string key;
     iss >> key;
     if(key == "IP"){
       iss >> ip;
-      break;
+    } else if(key == "PORT"){
+      iss >> pt;
     }
   }
   ifs.close();
@@ -67,6 +69,13 @@ void get_ipaddress(const std::string& file_path) {
   } else {
     throw std::runtime_error("Failed to read ip address in the file: " + file_path);
   }
+  if(!(pt<0)){
+    port = pt;
+    std::cout << " port: " << port << std::endl;
+  } else {
+    throw std::runtime_error("Failed to read port in the file: " + file_path);
+  }
+
 }
 
 //_____________________________________________________________________________
