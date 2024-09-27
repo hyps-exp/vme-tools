@@ -99,9 +99,12 @@ void set_thresholds(const std::string& file_path) {
                 << std::hex << baseaddr << std::endl;
       // get_version_serial(baseaddr);
     } else if (line == "END") {
+      unsigned int channelmask = 0;
       for (int i = 0; i < n_ch; ++i) {
         unsigned int address = baseaddr + (i * 2);
         if (enables[i]) {
+	  channelmask |= (0x1 << i);
+
           if (bbt::vmeg::write(AM | DM, address, &thresholds[i],
                         sizeof(thresholds[i])) < 0) {
             throw std::runtime_error("Failed to set threshold for channel "
@@ -110,10 +113,29 @@ void set_thresholds(const std::string& file_path) {
           std::cout << "Set threshold for channel "
                     << std::dec << std::setw(2) << i << ": "
                     << std::setw(3) << thresholds[i] << " mV, Enabled\n";
-        } else {
+
+	} else {
           std::cout << "Channel " << i << " disabled\n";
         }
       }
+      std::cout << "channel mask  " << std::hex << channelmask << std::endl;
+      if (bbt::vmeg::write(AM | DM, baseaddr+0x4a, &channelmask,
+			   sizeof(channelmask)) < 0) {
+	throw std::runtime_error("Failed to set channel mask");
+      }
+
+      unsigned int width = 200;
+      unsigned int address_width = baseaddr + 0x40;
+      if (bbt::vmeg::write(AM | DM, address_width, &width,
+			   sizeof(width)) < 0) {
+	throw std::runtime_error("Failed to set width for channel 0-7");
+      }
+      address_width = baseaddr + 0x42;
+      if (bbt::vmeg::write(AM | DM, address_width, &width,
+			   sizeof(width)) < 0) {
+	throw std::runtime_error("Failed to set width for channel 8-15");
+      }
+
     } else if (std::isdigit(line[0])) {
       int channel, threshold, enable;
       iss >> channel >> threshold >> enable;
