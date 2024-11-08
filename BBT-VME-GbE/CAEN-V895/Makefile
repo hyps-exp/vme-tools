@@ -1,6 +1,6 @@
 CXXFLAGS	+= -Wall -O2 -MMD -I../lib/
 CXXFLAGS	+= -std=c++11
-LIBS		+= -L../lib -lBBT-VME-GbE -Wl,-rpath,../lib
+LIBS		+= -L../lib -lBBT-VME-GbE -Wl,-rpath,../lib -lcurl
 
 src_dir         = src
 bin_dir         = bin

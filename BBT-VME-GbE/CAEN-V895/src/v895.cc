@@ -4,6 +4,7 @@
 
 #include "bbt-vme-gbe.h"
 
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -13,9 +14,32 @@
 #include <chrono>
 #include <stdexcept>
 
+#include <curl/curl.h>
+
 std::string host = "";
 int port = -999;
 //const int port = 24;
+unsigned int width = 200;
+
+namespace
+{
+std::string line_protocol;
+
+void add_line_protocol(const std::string& line) {
+  line_protocol += line;
+}
+
+void send_to_influxdb(const std::string& buf) {
+  const std::string python_script = "python /home/sks/software/vme-tools/python/send_to_influxdb.py";
+  std::ostringstream command;
+  command << python_script << " \"" << buf << "\"";
+  // std::cout << "Executing command: " << command.str() << std::endl;
+  int result = std::system(command.str().c_str());
+  if (result != 0) {
+    std::cerr << "Error: Python script failed with exit code " << result << std::endl;
+  }
+}
+}
 
 namespace caen
 {
@@ -85,12 +109,16 @@ void set_thresholds(const std::string& file_path) {
     throw std::runtime_error("Failed to open the file: " + file_path);
   }
 
+  std::ofstream ofs("last-param.txt");
+  ofs << "# " << file_path << std::endl << std::endl;
+
   std::string line;
   unsigned int baseaddr = 0;
   std::vector<int> thresholds(n_ch);
   std::vector<int> enables(n_ch);
 
   while (std::getline(ifs, line)) {
+    ofs << line << std::endl;
     std::istringstream iss(line);
     if (line.find("VME") == 0) {
       std::string token;
@@ -102,18 +130,23 @@ void set_thresholds(const std::string& file_path) {
       unsigned int channelmask = 0;
       for (int i = 0; i < n_ch; ++i) {
         unsigned int address = baseaddr + (i * 2);
+	std::stringstream line_protocol_ss;
+	line_protocol_ss << "v895,vme_address=" << std::hex << baseaddr
+			 << ",channel=" << std::dec << std::setw(2) << std::setfill('0') << i
+			 << " enable=" << enables[i] << ",threshold=" << thresholds[i]
+			 << ",width=" << width << std::endl;
+	add_line_protocol(line_protocol_ss.str());
         if (enables[i]) {
 	  channelmask |= (0x1 << i);
 
           if (bbt::vmeg::write(AM | DM, address, &thresholds[i],
-                        sizeof(thresholds[i])) < 0) {
+			       sizeof(thresholds[i])) < 0) {
             throw std::runtime_error("Failed to set threshold for channel "
                                      + std::to_string(i));
           }
           std::cout << "Set threshold for channel "
                     << std::dec << std::setw(2) << i << ": "
                     << std::setw(3) << thresholds[i] << " mV, Enabled\n";
-
 	} else {
           std::cout << "Channel " << i << " disabled\n";
         }
@@ -124,7 +157,6 @@ void set_thresholds(const std::string& file_path) {
 	throw std::runtime_error("Failed to set channel mask");
       }
 
-      unsigned int width = 200;
       unsigned int address_width = baseaddr + 0x40;
       if (bbt::vmeg::write(AM | DM, address_width, &width,
 			   sizeof(width)) < 0) {
@@ -145,6 +177,8 @@ void set_thresholds(const std::string& file_path) {
       }
     }
   }
+
+  send_to_influxdb(line_protocol);
 }
 } // v895
 } // caen
