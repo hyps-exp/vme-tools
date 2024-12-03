@@ -4,7 +4,7 @@
 #  note: output width is fixed to 40ns
 #
 #
-IP     192.168.10.5
+IP     192.168.10.11
 PORT   24
 #
 # ch	Vth	Enable
